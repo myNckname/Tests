@@ -1,15 +1,19 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SiteTester.Models;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using System.Net.NetworkInformation;
+
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+using SiteTester.Data;
+using SiteTester.Filters;
 
 namespace SiteTester.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [TesterExceptionsFilter]
     public class TestController : ControllerBase
     {
         private readonly ResourcesContext context;
@@ -26,25 +30,20 @@ namespace SiteTester.Controllers
         public async Task<ActionResult<Resource>> CheckResource(string url)
         {
             var ping = new Ping();
-            var resource = new Resource() { TestTime = DateTime.Now };
-
-            try
+            var result = ping.Send(url);
+            var resource = new Resource()
             {
-                var result = ping.Send(url);
+                TestTime = DateTime.Now,
+                Url = url,
+                Ping = result.RoundtripTime,
+                IsAvailable = result.Status == IPStatus.Success
+            };
 
-                resource.Url = url;
-                resource.Ping = result.RoundtripTime;
-                resource.IsAvailable = result.Status == System.Net.NetworkInformation.IPStatus.Success;
-
-            }
-            catch (PingException e)
-            {
-                return BadRequest("Wrong Url or site doesn`t exist.");
-            }
             context.Resources.Add(resource);
             await context.SaveChangesAsync();
+
             return resource;
-            }
+        }
 
     }
 }
